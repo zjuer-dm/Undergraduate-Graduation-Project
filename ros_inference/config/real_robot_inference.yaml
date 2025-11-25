@@ -1,0 +1,89 @@
+# 路径: ros_inference/vlnce_baselines/config/r2r_configs/real_robot_inference.yaml
+
+# 1. 修改 Base Config 路径 (指向同目录下的文件)
+BASE_TASK_CONFIG_PATH: "r2r_vlnce.yaml"
+
+# 2. 核心注册名
+TRAINER_NAME: "MY-SS-ETP-30"
+ENV_NAME: "SeekerROSEnv"
+
+# 3. 硬件资源
+SIMULATOR_GPU_IDS: [0]
+TORCH_GPU_ID: 0
+GPU_NUMBERS: 1
+NUM_ENVIRONMENTS: 1
+
+# 4. 日志与权重路径
+TENSORBOARD_DIR: "data/logs/tensorboard_dirs/real_robot"
+CHECKPOINT_FOLDER: "data/logs/checkpoints/real_robot"
+EVAL_CKPT_PATH_DIR: "data/checkpoints/ckpt.iter200.pth" # 确保此文件存在
+RESULTS_DIR: "data/logs/eval_results/real_robot"
+
+# 5. 推理设置
+INFERENCE:
+  SPLIT: "test"
+  USE_CKPT_CONFIG: False
+  PREDICTIONS_FILE: "data/predictions.json"
+  CKPT_PATH: "data/checkpoints/ckpt.iter200.pth" # 确保路径与你的文件结构一致
+  FORMAT: r2r
+  EPISODE_COUNT: -1
+
+# 6. 算法设置 (关键：从 iter_train.yaml 迁移过来的参数)
+IL:
+  # 实车使用 control 模式，由 ros_utils 处理导航
+  back_algo: control 
+  tryout: True
+  ckpt_to_load: "data/checkpoints/ckpt.iter200.pth"
+  
+  # 这些参数是 Trainer 初始化需要的
+  max_traj_len: 15
+  max_text_len: 150
+  loc_noise: 0.5
+  waypoint_aug: False
+  ghost_aug: 0.0
+
+# 7. 模型参数 (关键：必须定义 Policy Name，否则报错)
+MODEL:
+  task_type: r2r
+  policy_name: MyPolicyViewSelectionETP30  # 必须匹配 Policy 类名
+  
+  # 预训练权重路径 (指向 ros_inference/pretrained/...)
+  pretrained_path: "pretrained/model_step_367500.pt" 
+  
+  # ETP 模型特定参数
+  NUM_ANGLES: 12
+  fix_lang_embedding: False
+  fix_pano_embedding: False
+  use_depth_embedding: True
+  use_sprels: True
+  merge_ghost: True
+  consume_ghost: True
+  spatial_output: False
+  
+  RGB_ENCODER:
+    output_size: 512
+  DEPTH_ENCODER:
+    output_size: 256    
+  VISUAL_DIM:
+    vis_hidden: 768
+    directional: 128
+  INSTRUCTION_ENCODER:
+    bidirectional: True
+
+# 8. 策略设置
+RL:
+  POLICY:
+    OBS_TRANSFORMS:
+      ENABLED_TRANSFORMS: [] # 清空 Transforms，由 ros_utils 处理
+
+# 9. 模拟器设置 (覆盖 r2r_vlnce.yaml 防止冲突)
+SIMULATOR:
+  TYPE: "Sim-v0" # 占位符
+  AGENT_0:
+    SENSORS: [RGB_SENSOR, DEPTH_SENSOR]
+  RGB_SENSOR:
+    WIDTH: 224
+    HEIGHT: 224
+  DEPTH_SENSOR:
+    WIDTH: 256
+    HEIGHT: 256

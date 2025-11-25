@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import vlnce_baselines_PPO.waypoint_pred.utils as utils
+import vlnce_baselines.waypoint_pred.utils as utils
 
 from .transformer.waypoint_bert import WaypointBert
 from pytorch_transformers import BertConfig

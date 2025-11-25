@@ -10,7 +10,7 @@ import sys
 # 【路径配置】确保能找到本地的 dinov2 源码
 # ==============================================================================
 # 请确认这个路径在你的 SFT 训练环境中也是存在的
-sys.path.append('/home/wdm/ETPNav/dinov2')
+sys.path.append('ros_inference/dinov2')
 from dinov2.models.vision_transformer import vit_base
 
 # ==============================================================================
@@ -58,7 +58,7 @@ if not hasattr(F, 'scaled_dot_product_attention'):
 # DINOv2 Encoder 定义
 # ==========================================
 class DINOv2Encoder(nn.Module):
-    def __init__(self, checkpoint_path='/home/wdm/waypoint-predictor/dinov2_vitb14_reg4_pretrain.pth'):
+    def __init__(self, checkpoint_path='data/dinov2_vitb14_reg4_pretrain.pth'):
         super().__init__()
         print(f"Loading DINOv2 model from local: {checkpoint_path} ...")
         

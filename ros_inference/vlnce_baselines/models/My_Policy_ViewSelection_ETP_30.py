@@ -143,7 +143,7 @@ class ETP(Net):
         #         spatial_output=model_config.spatial_output,
         #     )
         
-        self.rgb_encoder = DINOv2Encoder(checkpoint_path='/home/wdm/ETPNav/precompute_img_features/dinov2_vitb14_reg4_pretrain.pth').to(self.device)
+        self.rgb_encoder = DINOv2Encoder(checkpoint_path='data/dinov2_vitb14_reg4_pretrain.pth').to(self.device)
         self.space_pool_rgb = nn.Sequential(nn.AdaptiveAvgPool2d((1,1)), nn.Flatten(start_dim=2))
 
     

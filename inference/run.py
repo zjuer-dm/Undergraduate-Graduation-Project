@@ -9,9 +9,6 @@ from habitat import logger
 from habitat_baselines.common.baseline_registry import baseline_registry
 
 
-
-
-
 import habitat_extensions  # noqa: F401
 # 通过下面这行代码调用vlnce_baselines/__init__.py，而__init__.py中通过import具体模块实现了注册
 import vlnce_baselines  # noqa: F401

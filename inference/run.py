@@ -21,7 +21,7 @@ from vlnce_baselines.config.default import get_config
 #     nonlearning_inference,
 # )
 
-
+ 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(

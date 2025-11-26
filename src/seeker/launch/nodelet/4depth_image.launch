@@ -15,7 +15,7 @@
 <arg name="pub_disparity_img" default="true"/>
 <arg name="pub_disparity" default="true"/>
 <arg name="pub_imu" default="true"/>
-<arg name="time_sync" default="true"/>
+<arg name="time_sync" default="false"/>
 
 <arg name="stereo_params_camchain" default="$(find seeker)/config/$(arg config)/kalibr_cam_chain.yaml"/>
 

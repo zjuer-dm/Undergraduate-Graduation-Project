@@ -1,0 +1,62 @@
+首先把ETPNav和habitat-lab-0.1.7文件夹迁移过去:
+
+迁移habitat-lab-0.1.7：
+（sudo apt-get install pv）
+tar --dereference -zcp \
+  --exclude='gt_data_v1-3' \
+  --exclude='instruction_split_train' \
+  --exclude='instruction_split_train_gemini' \
+  --exclude='instruction_split_val_unseen_gemini' \
+  --exclude='video_annotation_train' \
+  --exclude='video_annotation_train_2000' \
+  --exclude='video_annotation_train_gemini' \
+  --exclude='.git' \
+  -f - -C /home/ysh/ habitat-lab-0.1.7 \
+| pv | \
+ssh -p 40022 yesh@10.15.194.101 "cd /home/yesh && tar -zxpf -"
+
+迁移ETPNav：
+tar --dereference -zcp \
+  --exclude='data/scene_datasets' \
+  --exclude='data/logs/checkpoints' \
+  --exclude='data/logs/video' \
+  --exclude='pretrain_src/datasets/SOON' \
+  --exclude='pretrain_src/datasets/REVERIE' \
+  --exclude='data/logs/eval_results' \
+  --exclude='data/logs/tensorboard_dirs' \
+  --exclude='*.zip' \
+  --exclude='.git' \
+  -f - -C /home/ysh/ ETPNav \
+| pv | \
+ssh -p 40022 yesh@10.15.194.101 "cd /home/yesh && tar -zxpf -"
+添加软链接：
+ln -s /home/yesh/habitat-lab-0.1.7/data/scene_datasets /home/yesh/ETPNav/data/scene_datasets
+后续同步：
+rsync -avzhL \
+  --info=progress2 \
+  -e "ssh -p 40022" \
+  --exclude='/data/scene_datasets' \
+  --exclude='/data/logs/checkpoints' \
+  --exclude='/data/logs/video' \
+  --exclude='/pretrain_src/datasets/SOON' \
+  --exclude='/pretrain_src/datasets/REVERIE' \
+  --exclude='data/logs/eval_results' \
+  --exclude='data/logs/tensorboard_dirs' \
+  --exclude='*.zip' \
+  /home/ysh/ETPNav/ \
+  yesh@10.15.194.101:/home/yesh/ETPNav/
+
+
+
+然后进入ETPNav：
+conda env create -f environment.yaml
+pip install openai-clip==1.0.1
+pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
+conda install -c aihabitat -c conda-forge habitat-sim=0.1.7 headless(有显示器的单显卡电脑)或
+conda install habitat-sim=0.1.7=py3.6_headless_linux_856d4b08c1a2632626bf0d205bf46471a99502b7 headless -c conda-forge -c aihabitat（无显示器，多显卡电脑）
+
+然后进入habitat-lab-0.1.7：
+python setup.py develop --all
+
+
+

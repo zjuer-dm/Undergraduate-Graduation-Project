@@ -10,7 +10,7 @@ import sys
 # 【路径配置】确保能找到本地的 dinov2 源码
 # ==============================================================================
 # 请确认这个路径在你的 SFT 训练环境中也是存在的
-sys.path.append('ros_inference/dinov2')
+sys.path.append('dinov2')
 from dinov2.models.vision_transformer import vit_base
 
 # ==============================================================================

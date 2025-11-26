@@ -38,7 +38,7 @@
 
 ### 流程图概览
 
-```mermaid
+```
 graph TD
     HW[硬件层: Seeker & Limo] -->|ROS Topic| DRV[驱动层: ros_utils.py]
     DRV -->|Dict (Numpy)| ENV[环境层: ros_env.py]
@@ -54,62 +54,62 @@ graph TD
 
 第一步：相机输入 (哪里获取数据？)
 
-物理层：Seeker 相机发布 8 个 ROS 话题。
+    物理层：Seeker 相机发布 8 个 ROS 话题。
 
-接收层 (ros_utils.py - SeekerSubscriber 类)：
+    接收层 (ros_utils.py - SeekerSubscriber 类)：
 
-message_filters 同步接收 4路 RGB 和 4路 Depth。
+    message_filters 同步接收 4路 RGB 和 4路 Depth。
 
-预处理：这里强制将 RGB Resize 成 224x224，Depth Resize 成 256x256。这是数据进入系统的第一站。
+    预处理：这里强制将 RGB Resize 成 224x224，Depth Resize 成 256x256。这是数据进入系统的第一站。
 
-封装层 (ros_env.py - _get_obs 方法)：
+    封装层 (ros_env.py - _get_obs 方法)：
 
-将处理好的图像打包成字典，并塞入当前的“文本指令” (instruction)。
+    将处理好的图像打包成字典，并塞入当前的“文本指令” (instruction)。
 
-Trainer层 (my_ss_trainer_ETP_30.py - batch_obs):
+    Trainer层 (my_ss_trainer_ETP_30.py - batch_obs):
 
-将数据转换为 PyTorch Tensor 并送入 GPU。
+    将数据转换为 PyTorch Tensor 并送入 GPU。
 
 第二步：模型思考 (哪里输出动作？)
-输入：Tensor 格式的图像 + 指令。
+    输入：Tensor 格式的图像 + 指令。
 
-模型推理 (My_Policy_ViewSelection_ETP_30.py):
+    模型推理 (My_Policy_ViewSelection_ETP_30.py):
 
-数据流经 vln_bert、rgb_encoder (DINOv2) 等。
+    数据流经 vln_bert、rgb_encoder (DINOv2) 等。
 
-路点预测：waypoint_predictor 预测周围哪些方位可以走（生成 Ghost Nodes）。
+    路点预测：waypoint_predictor 预测周围哪些方位可以走（生成 Ghost Nodes）。
 
-决策：模型给每个候选节点打分 (nav_logits)。
+    决策：模型给每个候选节点打分 (nav_logits)。
 
-动作选择 (my_ss_trainer_ETP_30.py):
+    动作选择 (my_ss_trainer_ETP_30.py):
 
-代码根据分数选择概率最大的那个节点 ID (Argmax)。
+    代码根据分数选择概率最大的那个节点 ID (Argmax)。
 
-关键转换：Trainer 根据选中的节点 ID，从拓扑图 (gmap) 中提取出该节点的物理坐标 (Ghost Pos)。
+    关键转换：Trainer 根据选中的节点 ID，从拓扑图 (gmap) 中提取出该节点的物理坐标 (Ghost Pos)。
 
-输出：生成一个动作字典 env_actions，例如 {'act': 4, 'ghost_pos': [3.5, 0, 1.2], ...}。
+    输出：生成一个动作字典 env_actions，例如 {'act': 4, 'ghost_pos': [3.5, 0, 1.2], ...}。
 
 第三步：小车控制 (哪里控制小车？)
 
-传递：Trainer 调用 self.envs.step(env_actions)。
+    传递：Trainer 调用 self.envs.step(env_actions)。
 
-适配层 (ros_env.py - step 方法):
+    适配层 (ros_env.py - step 方法):
 
-接收动作字典。它看到 act: 4 (导航模式)，提取出目标坐标 target_x, target_y。
+    接收动作字典。它看到 act: 4 (导航模式)，提取出目标坐标 target_x, target_y。
 
-调用驱动：执行 self.ctl.navigate_to(target_x, target_y)。
+    调用驱动：执行 self.ctl.navigate_to(target_x, target_y)。
 
-驱动层 (ros_utils.py - LimoController 类):
+    驱动层 (ros_utils.py - LimoController 类):
 
-这是控制发生的具体位置。
+    这是控制发生的具体位置。
 
-它在一个 while 循环中，不断计算当前 /odom 位置和目标点的误差。
+    它在一个 while 循环中，不断计算当前 /odom 位置和目标点的误差。
 
-PID/逻辑控制：计算出需要的线速度 linear.x 和角速度 angular.z。
+    PID/逻辑控制：计算出需要的线速度 linear.x 和角速度 angular.z。
 
-发送指令：self.vel_pub.publish(cmd) 将速度指令发送给 /cmd_vel 话题，驱动 Limo 物理运动。
+    发送指令：self.vel_pub.publish(cmd) 将速度指令发送给 /cmd_vel 话题，驱动 Limo 物理运动。
 
 第四步：闭环
 
-小车移动到位后，Maps_to 函数返回。ros_env.step 读取新位置的相机图像，返回给 Trainer，开始下一轮循环。
+    小车移动到位后，Maps_to 函数返回。ros_env.step 读取新位置的相机图像，返回给 Trainer，开始下一轮循环。
 

@@ -21,10 +21,10 @@ class SeekerSubscriber:
         
         # Seeker Topics (需在实车上最终确认)
         self.rgb_topics = {
-            'front': '/seeker/front/undistort/image_raw', 
-            'right': '/seeker/right/undistort/image_raw',
-            'back':  '/seeker/back/undistort/image_raw',
-            'left':  '/seeker/left/undistort/image_raw'
+            'front': '/front/undistort/image_raw', 
+            'right': '/right/undistort/image_raw',
+            'back':  '/back/undistort/image_raw',
+            'left':  '/left/undistort/image_raw'
         }
         # 深度图通常不需要 undistort，或者 SDK 已处理
         self.depth_topics = {
@@ -94,69 +94,104 @@ class SeekerSubscriber:
                 return None
             return self.latest_obs.copy()
 
-class LimoController:
-    def __init__(self):
-        self.odom_sub = rospy.Subscriber('/odom', Odometry, self._odom_cb)
-        self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-        
-        self.curr_pos = None # [x, y]
-        self.curr_yaw = None
-        self.mutex = threading.Lock()
-        
-        # 控制参数
-        self.k_rho = 0.5
-        self.k_alpha = 1.2
-        self.max_v = 0.25
-        self.max_w = 0.6
-        self.dist_tol = 0.15
-        self.angle_tol = 0.1
 
-    def _odom_cb(self, msg):
-        with self.mutex:
-            self.curr_pos = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-            q = msg.pose.pose.orientation
-            (_, _, yaw) = tf.transformations.euler_from_quaternion([q.x, q.y, q.z, q.w])
-            self.curr_yaw = yaw
+
+# MYTODO:这里还是我的测试版本，以后要按实物小车修改
+class LimoController: # [Mock Auto Mode]
+    def __init__(self):
+        self.curr_pos = [0.0, 0.0] 
+        self.curr_yaw = 0.0
+        self.mutex = threading.Lock()
+        print("[MockController] AUTO Simulation Mode Initialized.")
 
     def get_current_pose(self):
         with self.mutex:
-            if self.curr_pos is None:
-                return (0.0, 0.0, 0.0)
             return (self.curr_pos[0], self.curr_pos[1], self.curr_yaw)
 
     def stop(self):
-        self.vel_pub.publish(Twist())
+        print(">>> [AUTO] Robot STOPPED.")
 
     def navigate_to(self, target_x, target_y):
-        """ 简单的 P-Controller 导航到目标点 (阻塞式) """
-        rate = rospy.Rate(10)
-        rospy.loginfo(f"[Nav] Moving to ({target_x:.2f}, {target_y:.2f})")
+        """
+        自动模拟移动过程，不需要人工干预
+        """
+        with self.mutex:
+            start_x, start_y = self.curr_pos
+            
+        dx = target_x - start_x
+        dy = target_y - start_y
+        dist = np.sqrt(dx**2 + dy**2)
+        target_yaw = np.arctan2(dy, dx)
         
-        while not rospy.is_shutdown():
-            with self.mutex:
-                if self.curr_pos is None: continue
-                cx, cy, cyaw = self.curr_pos[0], self.curr_pos[1], self.curr_yaw
-
-            dx = target_x - cx
-            dy = target_y - cy
-            dist = np.sqrt(dx**2 + dy**2)
-            target_angle = np.arctan2(dy, dx)
+        # 1. 计算模拟耗时 (假设速度 0.3 m/s)
+        duration = dist / 0.3 
+        # 限制最小和最大等待时间，方便调试
+        duration = np.clip(duration, 1.0, 5.0)
+        
+        print(f"\n>>> [AUTO] Navigating to ({target_x:.2f}, {target_y:.2f})...")
+        print(f">>> [AUTO] Distance: {dist:.2f}m. Moving for {duration:.1f}s...")
+        
+        # 2. 阻塞等待 (模拟物理移动时间)
+        # 在这段时间内，模型是等待的，你的相机如果拿着走，正好模拟了移动后的视角变化
+        time.sleep(duration)
+        
+        # 3. 自动更新坐标 (假装到了)
+        with self.mutex:
+            self.curr_pos = [target_x, target_y]
+            self.curr_yaw = target_yaw
             
-            alpha = target_angle - cyaw
-            alpha = (alpha + np.pi) % (2 * np.pi) - np.pi
+        print(f">>> [AUTO] Arrived at ({target_x:.2f}, {target_y:.2f}).\n")
+        return True
 
-            if dist < self.dist_tol:
-                self.stop()
-                return True
 
-            cmd = Twist()
-            # 优先转向，再前进
-            if abs(alpha) > self.angle_tol:
-                cmd.angular.z = np.clip(self.k_alpha * alpha, -self.max_w, self.max_w)
-            else:
-                cmd.linear.x = np.clip(self.k_rho * dist, -self.max_v, self.max_v)
-                cmd.angular.z = np.clip(self.k_alpha * alpha, -self.max_w, self.max_w)
+# RealController (用于真实 Limo 小车) - ODOM 闭环
+# class LimoController: # [Real Robot Mode]
+#     def __init__(self):
+#         self.odom_sub = rospy.Subscriber('/odom', Odometry, self._odom_cb)
+#         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+#         self.curr_pos = None 
+#         self.curr_yaw = None
+#         self.mutex = threading.Lock()
+        
+#         # PID 参数
+#         self.dist_tol = 0.15 # 到达阈值 (15cm)
+#         self.angle_tol = 0.1 # 角度阈值 (0.1 rad)
+
+#     # ... (省略 _odom_cb 和 get_current_pose，同之前) ...
+
+#     def navigate_to(self, target_x, target_y):
+#         rate = rospy.Rate(10) # 10Hz 控制频率
+#         timeout = 15.0 # 超时时间 15秒
+#         start_time = time.time()
+        
+#         rospy.loginfo(f"[Nav] Start moving to ({target_x:.2f}, {target_y:.2f})")
+        
+#         while not rospy.is_shutdown():
+#             # 1. 超时检查
+#             if time.time() - start_time > timeout:
+#                 rospy.logwarn("[Nav] Timeout! Forced stop.")
+#                 self.stop()
+#                 return False # 返回失败，告诉模型我们没走到
+
+#             # 2. 获取当前位置
+#             with self.mutex:
+#                 if self.curr_pos is None: continue
+#                 cx, cy, cyaw = self.curr_pos[0], self.curr_pos[1], self.curr_yaw
+
+#             # 3. 计算误差
+#             dist = np.sqrt((target_x - cx)**2 + (target_y - cy)**2)
             
-            self.vel_pub.publish(cmd)
-            rate.sleep()
-        return False
+#             # 4. 判断到达 (Fast System 的核心退出条件)
+#             if dist < self.dist_tol:
+#                 self.stop()
+#                 rospy.loginfo("[Nav] Target Reached.")
+#                 return True # 成功返回
+
+#             # 5. 计算控制律 (P-Control)
+#             # ... (计算 cmd_vel 的逻辑同之前) ...
+            
+#             self.vel_pub.publish(cmd)
+#             rate.sleep()
+            
+#         return False
+
